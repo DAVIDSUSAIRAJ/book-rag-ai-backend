@@ -24,20 +24,73 @@ function getBookContent(language) {
   return languageChunks.map((chunk) => chunk.text).join("\n\n---\n\n");
 }
 
+// Format chat history for prompt
+function formatChatHistory(history) {
+  if (!history || history.length === 0) return "";
+
+  const formatted = history
+    .map((msg) => `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`)
+    .join("\n");
+
+  return `\nPREVIOUS CONVERSATION:\n${formatted}\n`;
+}
+
 // Get LLM response
-async function getLLMResponse(bookContent, question, language) {
+async function getLLMResponse(bookContent, question, language, history) {
+  const languageMap = {
+    tamil: "Tamil (தமிழ்)",
+    english: "English",
+    hindi: "Hindi (हिंदी)",
+    telugu: "Telugu (తెలుగు)",
+    malayalam: "Malayalam (മലയാളം)",
+    german: "German (Deutsch)",
+  };
+
+  const targetLang = languageMap[language] || language;
+  const chatHistory = formatChatHistory(history);
+
   const prompt = `You are a helpful assistant that answers questions based on a book.
 
 BOOK CONTENT:
 ${bookContent}
+${chatHistory}
+CURRENT USER'S QUESTION: ${question}
 
-USER'S QUESTION: ${question}
+UNDERSTANDING USER INPUT:
+Users may type in various ways - you MUST understand their intent:
 
-INSTRUCTIONS:
+1. TAMIL users may type:
+   - Pure Tamil: "காதல் பற்றி சொல்லு"
+   - Tanglish (Tamil + English): "kadhal patri sollu", "appa amma about sollu"
+   - Mixed: "love பற்றி சொல்லு"
+
+2. ENGLISH users may type:
+   - Normal English: "Tell me about love"
+   - With typos: "tel me abot love"
+
+3. HINDI users may type:
+   - Pure Hindi: "प्यार के बारे में बताओ"
+   - Hinglish (Hindi + English): "pyaar ke baare mein batao", "love ke baare mein bolo"
+
+4. TELUGU users may type:
+   - Pure Telugu: "ప్రేమ గురించి చెప్పు"
+   - Tenglish (Telugu + English): "prema gurinchi cheppu", "love gurinchi cheppu"
+
+5. MALAYALAM users may type:
+   - Pure Malayalam: "സ്നേഹത്തെ കുറിച്ച് പറയൂ"
+   - Manglish (Malayalam + English): "sneham kurichu parayoo", "love ne patti para"
+
+6. GERMAN users may type:
+   - Pure German: "Erzähl mir von der Liebe"
+   - With English mix: "Tell me about Liebe"
+
+STRICT RESPONSE RULES:
 1. Answer ONLY based on the book content above.
-2. User may type in Tanglish/Hinglish/spelling mistakes - understand their intent.
-3. Answer in ${language} language.
-4. If not in book, say "I don't have information about this in the book."
+2. Understand user intent regardless of spelling mistakes or language mixing.
+3. Use PREVIOUS CONVERSATION context if available (user may ask follow-up questions like "அது பற்றி மேலும் சொல்லு", "tell me more", etc.)
+4. DEFAULT language is ${targetLang}. Use ${targetLang} script for answers.
+5. EXCEPTION: If user explicitly asks for translation (e.g., "English la sollu", "translate to Hindi", "German-ல சொல்லு"), respond in that requested language.
+6. If answer not in book, say "I don't have information about this in the book" (in appropriate language).
 
 YOUR ANSWER:`;
 
@@ -61,7 +114,7 @@ app.get("/", (req, res) => {
 
 app.post("/chat", async (req, res) => {
   try {
-    const { text, language } = req.body;
+    const { text, language, history } = req.body;
 
     if (!text || !language) {
       return res.status(400).json({ error: "Missing required fields: text and language" });
@@ -73,7 +126,7 @@ app.post("/chat", async (req, res) => {
     }
 
     const bookContent = getBookContent(language);
-    const answer = await getLLMResponse(bookContent, text, language);
+    const answer = await getLLMResponse(bookContent, text, language, history || []);
 
     return res.json({
       success: true,
