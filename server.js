@@ -91,6 +91,7 @@ STRICT RESPONSE RULES:
 4. DEFAULT language is ${targetLang}. Use ${targetLang} script for answers.
 5. EXCEPTION: If user explicitly asks for translation (e.g., "English la sollu", "translate to Hindi", "German-ல சொல்லு"), respond in that requested language.
 6. If answer not in book, say "I don't have information about this in the book" (in appropriate language).
+7. FORMAT URLs as markdown links: [link text](URL). Example: [Portfolio](https://example.com)
 
 YOUR ANSWER:`;
 
